@@ -17,51 +17,57 @@
       flex-direction: column;
     }
 
-    /* Drag bar - visible in interactive mode */
+    /* Drag bar */
     #drag-bar {
       -webkit-app-region: drag;
-      height: 24px;
-      background: linear-gradient(90deg, rgba(99, 102, 241, 0.8), rgba(168, 85, 247, 0.8));
+      height: 28px;
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.9), rgba(168, 85, 247, 0.9));
       display: none;
       align-items: center;
       justify-content: space-between;
-      padding: 0 10px;
+      padding: 0 12px;
       cursor: move;
-      border-radius: 8px 8px 0 0;
+      border-radius: 10px 10px 0 0;
     }
 
     #drag-bar .title {
-      font-size: 11px;
+      font-size: 12px;
       color: white;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 2px;
+    }
+
+    #drag-bar .controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     #drag-bar .hint {
-      font-size: 10px;
-      color: rgba(255,255,255,0.7);
+      font-size: 9px;
+      color: rgba(255,255,255,0.6);
     }
 
     #drag-bar .close-btn {
       -webkit-app-region: no-drag;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.15);
       border: none;
       color: white;
       width: 18px;
       height: 18px;
       border-radius: 50%;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-left: 8px;
+      transition: background 0.2s;
     }
 
     #drag-bar .close-btn:hover {
-      background: rgba(239, 68, 68, 0.8);
+      background: rgba(239, 68, 68, 0.9);
     }
 
     body.interactive #drag-bar {
@@ -72,85 +78,114 @@
     #main-container {
       flex: 1;
       display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 10px;
+      flex-direction: column;
+      padding: 0;
       overflow: hidden;
-      min-height: 0; /* Important for flex child to respect overflow */
+      min-height: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      border-radius: 0 0 10px 10px;
     }
 
-    #lyrics-container {
-      width: 100%;
-      height: 100%;
+    body:not(.interactive) #main-container {
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    /* In locked mode, hide loading UI elements */
+    body:not(.interactive) .loading-container,
+    body:not(.interactive) .no-lyrics-container {
+      opacity: 0.3;
+    }
+
+    /* Lyrics area */
+    #lyrics-area {
+      flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      padding: 15px 20px;
+      min-height: 0;
       overflow: hidden;
     }
 
-    /* Resize handles */
-    .resize-handle {
-      position: absolute;
-      background: rgba(99, 102, 241, 0.6);
-      display: none;
+    /* Loading state */
+    .loading-container {
+      text-align: center;
     }
 
-    body.interactive .resize-handle { display: block; }
-
-    .resize-handle.right {
-      right: 0; top: 24px; bottom: 0;
-      width: 6px; cursor: ew-resize;
+    .loading-logo {
+      font-size: 14px;
+      color: #a78bfa;
+      font-family: monospace;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      white-space: pre;
     }
 
-    .resize-handle.bottom {
-      bottom: 0; left: 0; right: 0;
-      height: 6px; cursor: ns-resize;
+    .loading-text {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+      margin-bottom: 6px;
     }
 
-    .resize-handle.corner {
-      right: 0; bottom: 0;
-      width: 16px; height: 16px;
-      cursor: nwse-resize;
+    .loading-dots {
+      display: inline-block;
+      animation: pulse 1.5s infinite;
     }
 
-    body.interactive #main-container {
-      border: 2px solid rgba(99, 102, 241, 0.5);
-      border-top: none;
-      border-radius: 0 0 8px 8px;
-      background: rgba(0, 0, 0, 0.3);
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
     }
 
-    /* Waiting state */
-    .waiting {
-      font-size: 24px;
+    .loading-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* No lyrics state */
+    .no-lyrics-container {
+      text-align: center;
+    }
+
+    .no-lyrics-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .no-lyrics-text {
+      font-size: 16px;
       color: rgba(255, 255, 255, 0.6);
-      text-shadow: 2px 2px 4px #000;
+    }
+
+    .no-lyrics-song {
+      font-size: 12px;
+      color: #a78bfa;
+      margin-top: 4px;
     }
 
     /* Karaoke mode */
-    .karaoke-mode {
-      background: rgba(0, 0, 0, 0.6);
-      padding: 15px 20px;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      backdrop-filter: blur(8px);
+    .karaoke-container {
       width: 100%;
       height: 100%;
-      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    .song-info {
-      font-size: 12px;
+    .song-header {
+      font-size: 11px;
       color: #a78bfa;
-      margin-bottom: 8px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
       font-weight: 600;
-      flex-shrink: 0; /* Don't shrink the header */
+      margin-bottom: 10px;
+      text-align: center;
+      flex-shrink: 0;
     }
 
     .lyrics-scroll {
@@ -159,30 +194,92 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 100%;
       overflow: hidden;
-      min-height: 0; /* Allow scrolling within flex */
+      min-height: 0;
     }
 
     .line {
-      font-size: 22px;
-      color: rgba(255, 255, 255, 0.4);
-      margin: 4px 0;
-      transition: all 0.3s ease;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.35);
+      margin: 3px 0;
+      transition: all 0.25s ease;
       font-weight: 500;
+      text-align: center;
     }
 
     .line.active {
-      font-size: 28px;
+      font-size: 26px;
       color: #fff;
-      text-shadow: 0 0 20px rgba(167, 139, 250, 0.8);
-      transform: scale(1.02);
+      text-shadow: 0 0 25px rgba(167, 139, 250, 0.9);
       font-weight: 700;
     }
 
     .line.past {
-      color: rgba(255, 255, 255, 0.25);
-      font-size: 18px;
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 16px;
+    }
+
+    /* Debug log area - only visible in interactive mode */
+    #debug-area {
+      background: rgba(0, 0, 0, 0.5);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      max-height: 50px;
+      overflow: hidden;
+      display: none;
+    }
+
+    body.interactive #debug-area {
+      display: block;
+    }
+
+    #debug-log {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1.4;
+      overflow: hidden;
+    }
+
+    #debug-log .log-line {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #debug-log .log-line.highlight {
+      color: #a78bfa;
+    }
+
+    /* Resize handles */
+    .resize-handle {
+      position: absolute;
+      background: rgba(99, 102, 241, 0.5);
+      display: none;
+    }
+
+    body.interactive .resize-handle { display: block; }
+
+    .resize-handle.right {
+      right: 0; top: 28px; bottom: 0;
+      width: 5px; cursor: ew-resize;
+    }
+
+    .resize-handle.bottom {
+      bottom: 0; left: 0; right: 0;
+      height: 5px; cursor: ns-resize;
+    }
+
+    .resize-handle.corner {
+      right: 0; bottom: 0;
+      width: 14px; height: 14px;
+      cursor: nwse-resize;
+      border-radius: 0 0 10px 0;
+    }
+
+    body.interactive #main-container {
+      border: 2px solid rgba(99, 102, 241, 0.6);
+      border-top: none;
     }
 
     /* Mode indicator */
@@ -190,11 +287,11 @@
       position: fixed;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(99, 102, 241, 0.9);
+      background: rgba(99, 102, 241, 0.95);
       color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 12px;
       font-weight: 600;
       display: none;
       z-index: 1000;
@@ -210,14 +307,19 @@
 <body>
   <div id="drag-bar">
     <span class="title">Lyrics Live</span>
-    <div style="display: flex; align-items: center;">
+    <div class="controls">
       <span class="hint">Ctrl+Shift+L to lock</span>
       <button class="close-btn" id="close-btn" title="Close">×</button>
     </div>
   </div>
 
   <div id="main-container">
-    <div id="lyrics-container" class="waiting">Waiting for audio...</div>
+    <div id="lyrics-area">
+      <!-- Content injected by renderer -->
+    </div>
+    <div id="debug-area">
+      <div id="debug-log"></div>
+    </div>
   </div>
 
   <div class="resize-handle right"></div>

@@ -1,57 +1,79 @@
 /**
  * Renderer Process
  *
- * Handles lyrics display and karaoke-style highlighting.
- * Receives messages from main process via IPC.
+ * Handles lyrics display with multiple UI states:
+ * - Loading: Startup/waiting for song detection
+ * - No Lyrics: Song found but no synced lyrics available
+ * - Karaoke: Displaying synced lyrics
  */
 
 import { ipcRenderer } from 'electron';
 
-const lyricsContainer = document.getElementById('lyrics-container');
+const lyricsArea = document.getElementById('lyrics-area');
+const debugLog = document.getElementById('debug-log');
 const modeIndicator = document.getElementById('mode-indicator');
 const closeBtn = document.getElementById('close-btn');
-
-// Close button handler
-if (closeBtn) {
-  closeBtn.addEventListener('click', () => {
-    ipcRenderer.send('close-app');
-  });
-}
 
 interface LyricLine {
   time: number;
   text: string;
 }
 
+// State
 let currentLyrics: LyricLine[] = [];
-let isKaraokeMode = false;
 let currentTrack = '';
 let currentArtist = '';
-const VISIBLE_LINES = 5; // Show 5 lines at a time (2 before, current, 2 after)
+let lastActiveIndex = -1;
+let uiState: 'loading' | 'no-lyrics' | 'karaoke' = 'loading';
+const VISIBLE_LINES = 5;
+const MAX_LOG_LINES = 3;
+let logLines: string[] = [];
 
-// Handle lyrics updates from Python backend
+// Close button
+if (closeBtn) {
+  closeBtn.addEventListener('click', () => {
+    ipcRenderer.send('close-app');
+  });
+}
+
+// Show initial loading UI
+showLoadingUI();
+
+// Handle messages from Python backend
 ipcRenderer.on('lyrics-update', (_event: any, data: string) => {
   try {
     const parsed = JSON.parse(data);
 
     if (parsed.type === 'lyrics_load') {
-      // New song with synced lyrics
-      isKaraokeMode = true;
-      currentLyrics = parsed.lines.filter((l: LyricLine) => l.text.trim()); // Filter empty lines
+      // New song with lyrics
+      currentLyrics = parsed.lines.filter((l: LyricLine) => l.text.trim());
       currentTrack = parsed.track;
       currentArtist = parsed.artist;
-      renderVisibleLyrics(-1); // Initial render
+      lastActiveIndex = -1;
+
+      if (currentLyrics.length > 0) {
+        uiState = 'karaoke';
+        renderKaraoke(-1);
+        addLog(`Now playing: ${currentTrack}`, true);
+      } else {
+        uiState = 'no-lyrics';
+        showNoLyricsUI();
+        addLog(`No synced lyrics for: ${currentTrack}`);
+      }
     }
     else if (parsed.type === 'lrc_update') {
-      // Position update - highlight current line
-      if (isKaraokeMode) {
-        updateHighlight(parsed.position);
+      if (uiState === 'karaoke') {
+        updateKaraoke(parsed.position);
       }
     }
     else if (parsed.status) {
-      // Status message
-      if (!isKaraokeMode) {
-        showStatus(parsed.status);
+      // Status/log message
+      addLog(parsed.status, parsed.status.includes('Identified') || parsed.status.includes('Lyrics found'));
+
+      // If we get "No synced lyrics" status
+      if (parsed.status.includes('No synced lyrics')) {
+        uiState = 'no-lyrics';
+        showNoLyricsUI();
       }
     }
   } catch (e) {
@@ -63,48 +85,94 @@ ipcRenderer.on('lyrics-update', (_event: any, data: string) => {
 ipcRenderer.on('mode-change', (_event: any, data: { interactive: boolean }) => {
   if (data.interactive) {
     document.body.classList.add('interactive');
-    showModeIndicator('Resize Mode - Drag to move/resize');
+    showModeIndicator('Resize Mode');
   } else {
     document.body.classList.remove('interactive');
-    showModeIndicator('Locked - Click-through enabled');
+    showModeIndicator('Locked');
   }
 });
 
 function showModeIndicator(text: string) {
   if (!modeIndicator) return;
-
   modeIndicator.textContent = text;
   modeIndicator.style.display = 'block';
   modeIndicator.style.animation = 'none';
-  modeIndicator.offsetHeight; // Trigger reflow
-  modeIndicator.style.animation = 'fadeOut 2s forwards';
-
+  modeIndicator.offsetHeight;
+  modeIndicator.style.animation = 'fadeOut 1.5s forwards';
   setTimeout(() => {
     modeIndicator.style.display = 'none';
-  }, 2000);
+  }, 1500);
 }
 
-function renderVisibleLyrics(activeIndex: number) {
-  if (!lyricsContainer) return;
+function addLog(message: string, highlight = false) {
+  // Clean up message
+  let cleanMsg = message;
+  if (cleanMsg.startsWith('Mic:')) cleanMsg = '🎤 ' + cleanMsg;
+  else if (cleanMsg.includes('Identifying')) cleanMsg = '🔍 ' + cleanMsg;
+  else if (cleanMsg.includes('Identified')) cleanMsg = '✓ ' + cleanMsg;
+  else if (cleanMsg.includes('Lyrics found')) cleanMsg = '📝 ' + cleanMsg;
+  else if (cleanMsg.includes('Fetching')) cleanMsg = '⏳ ' + cleanMsg;
 
-  lyricsContainer.classList.remove('waiting');
-  lyricsContainer.className = 'karaoke-mode';
+  logLines.push(highlight ? `<span class="log-line highlight">${cleanMsg}</span>` : `<span class="log-line">${cleanMsg}</span>`);
 
-  // Calculate visible range (sliding window around active line)
+  // Keep only last N lines
+  if (logLines.length > MAX_LOG_LINES) {
+    logLines.shift();
+  }
+
+  if (debugLog) {
+    debugLog.innerHTML = logLines.join('<br>');
+  }
+}
+
+function showLoadingUI() {
+  if (!lyricsArea) return;
+
+  lyricsArea.innerHTML = `
+    <div class="loading-container">
+      <div class="loading-logo">♪ ♫ ♪</div>
+      <div class="loading-text">Listening<span class="loading-dots">...</span></div>
+      <div class="loading-sub">Play some music to get started</div>
+    </div>
+  `;
+}
+
+function showNoLyricsUI() {
+  if (!lyricsArea) return;
+
+  lyricsArea.innerHTML = `
+    <div class="no-lyrics-container">
+      <div class="no-lyrics-icon">♪</div>
+      <div class="no-lyrics-text">No synced lyrics available</div>
+      ${currentTrack ? `<div class="no-lyrics-song">${currentTrack} - ${currentArtist}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderKaraoke(activeIndex: number) {
+  if (!lyricsArea) return;
+
+  // Calculate visible window
   const halfWindow = Math.floor(VISIBLE_LINES / 2);
   let startIdx = Math.max(0, activeIndex - halfWindow);
   let endIdx = Math.min(currentLyrics.length - 1, activeIndex + halfWindow);
 
-  // If at the beginning, show more lines after
+  // Adjust window at boundaries
   if (activeIndex < halfWindow) {
     endIdx = Math.min(currentLyrics.length - 1, VISIBLE_LINES - 1);
   }
-  // If at the end, show more lines before
   if (activeIndex > currentLyrics.length - halfWindow - 1) {
     startIdx = Math.max(0, currentLyrics.length - VISIBLE_LINES);
   }
 
-  let html = `<div class="song-info">${currentTrack} - ${currentArtist}</div>`;
+  // Handle initial state (no active line yet)
+  if (activeIndex < 0) {
+    startIdx = 0;
+    endIdx = Math.min(currentLyrics.length - 1, VISIBLE_LINES - 1);
+  }
+
+  let html = `<div class="karaoke-container">`;
+  html += `<div class="song-header">${currentTrack} — ${currentArtist}</div>`;
   html += `<div class="lyrics-scroll">`;
 
   for (let i = startIdx; i <= endIdx; i++) {
@@ -121,16 +189,12 @@ function renderVisibleLyrics(activeIndex: number) {
     html += `<div class="${className}">${line.text}</div>`;
   }
 
-  html += `</div>`;
-  lyricsContainer.innerHTML = html;
+  html += `</div></div>`;
+  lyricsArea.innerHTML = html;
 }
 
-let lastActiveIndex = -1;
-
-function updateHighlight(position: number) {
-  if (!lyricsContainer) return;
-
-  // Find active line based on position
+function updateKaraoke(position: number) {
+  // Find active line
   let activeIndex = -1;
   for (let i = 0; i < currentLyrics.length; i++) {
     if (position >= currentLyrics[i].time) {
@@ -140,16 +204,9 @@ function updateHighlight(position: number) {
     }
   }
 
-  // Only re-render if active line changed
-  if (activeIndex !== lastActiveIndex && activeIndex !== -1) {
+  // Only re-render if changed
+  if (activeIndex !== lastActiveIndex) {
     lastActiveIndex = activeIndex;
-    renderVisibleLyrics(activeIndex);
+    renderKaraoke(activeIndex);
   }
-}
-
-function showStatus(text: string) {
-  if (!lyricsContainer) return;
-
-  lyricsContainer.className = 'waiting';
-  lyricsContainer.textContent = text;
 }
