@@ -61,14 +61,33 @@ class LyricsApp:
         # We need to convert float32 numpy array to int16 bytes.
         audio_int16 = (audio_chunk * 32767).astype(np.int16)
 
+        # Check if audio has actual content (not silence)
+        audio_level = np.abs(audio_int16).mean()
+        print(json.dumps({"status": f"Audio level: {audio_level:.0f}"}), flush=True)
+
+        if audio_level < 100:
+            print(json.dumps({"status": "Audio too quiet - is music playing?"}), flush=True)
+            return None
+
+        tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                wav.write(tmp.name, SAMPLE_RATE, audio_int16)
-                out = await self.shazam.recognize(tmp.name)
-                return out
+                tmp_path = tmp.name
+                wav.write(tmp_path, SAMPLE_RATE, audio_int16)
+
+            out = await self.shazam.recognize(tmp_path)
+            return out
         except Exception as e:
             print(json.dumps({"error": f"Shazam error: {e}"}), flush=True)
             return None
+        finally:
+            # Clean up temp file
+            if tmp_path:
+                try:
+                    import os
+                    os.unlink(tmp_path)
+                except:
+                    pass
 
     async def run(self):
         print(json.dumps({"status": "Starting Hybrid Backend..."}), flush=True)

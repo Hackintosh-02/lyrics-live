@@ -8,6 +8,7 @@
 import { app, BrowserWindow, screen, ipcMain, globalShortcut } from 'electron';
 import * as path from 'path';
 import * as child_process from 'child_process';
+import * as fs from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: child_process.ChildProcess | null = null;
@@ -81,13 +82,41 @@ ipcMain.on('close-app', () => {
   app.quit();
 });
 
-function startPythonBackend() {
-  const pythonPath = path.join(__dirname, '../venv/bin/python');
-  const scriptPath = path.join(__dirname, '../py_backend/main.py');
+function getResourcePath(relativePath: string): string {
+  // In production, resources are in app.getPath('exe')/../resources
+  // In development, they're relative to __dirname
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, relativePath);
+  }
+  return path.join(__dirname, '..', relativePath);
+}
 
-  console.log(`Starting Python: ${scriptPath}`);
+function startPythonBackend() {
+  const pythonPath = getResourcePath('venv/bin/python');
+  const scriptPath = getResourcePath('py_backend/main.py');
+
+  console.log(`[DEBUG] app.isPackaged: ${app.isPackaged}`);
+  console.log(`[DEBUG] process.resourcesPath: ${process.resourcesPath}`);
+  console.log(`[DEBUG] __dirname: ${__dirname}`);
+  console.log(`[DEBUG] Starting Python: ${pythonPath}`);
+  console.log(`[DEBUG] Script: ${scriptPath}`);
+  console.log(`[DEBUG] Python exists: ${fs.existsSync(pythonPath)}`);
+  console.log(`[DEBUG] Script exists: ${fs.existsSync(scriptPath)}`);
+
+  // Also check if python symlink is valid
+  try {
+    const pythonRealPath = fs.realpathSync(pythonPath);
+    console.log(`[DEBUG] Python real path: ${pythonRealPath}`);
+    console.log(`[DEBUG] Python real path exists: ${fs.existsSync(pythonRealPath)}`);
+  } catch (e) {
+    console.error(`[DEBUG] Failed to resolve python path: ${e}`);
+  }
 
   pythonProcess = child_process.spawn(pythonPath, [scriptPath]);
+
+  pythonProcess.on('error', (err) => {
+    console.error(`Failed to start Python: ${err.message}`);
+  });
 
   // Buffer for handling partial JSON lines
   let buffer = '';

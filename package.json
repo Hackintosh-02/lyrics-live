@@ -6,7 +6,12 @@
   "scripts": {
     "build": "tsc",
     "start": "tsc && electron .",
-    "dev": "tsc && electron ."
+    "dev": "tsc && electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac"
   },
   "keywords": [
     "lyrics",
@@ -15,11 +20,63 @@
     "shazam",
     "music"
   ],
-  "author": "",
+  "author": {
+    "name": "Hackintosh",
+    "email": "hackintoshdev0@gmail.com"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hackintosh-02/lyrics-live.git"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "electron": "^27.1.0",
+    "electron-builder": "^26.0.12",
     "typescript": "^5.3.2"
+  },
+  "build": {
+    "appId": "com.lyricslive.app",
+    "productName": "Lyrics Live",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "index.html",
+      "py_backend/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "extraResources": [
+      {
+        "from": "venv",
+        "to": "venv",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "py_backend",
+        "to": "py_backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Audio",
+      "icon": "assets/icon.svg"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.svg"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.music",
+      "icon": "assets/icon.svg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
