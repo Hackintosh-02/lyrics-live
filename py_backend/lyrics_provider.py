@@ -1,87 +1,73 @@
-"""
-Lyrics Provider Module
-
-Fetches synced lyrics from LRCLIB (free, no API key required).
-Parses LRC format timestamps for karaoke-style display.
-"""
-
-import re
 import aiohttp
-
-LRCLIB_API = "https://lrclib.net/api"
-
+import urllib.parse
 
 class LyricsProvider:
-    """Fetches and parses synced lyrics from LRCLIB."""
+    BASE_URL = "https://lrclib.net/api"
 
-    async def get_lyrics(self, title: str, artist: str) -> dict | None:
+    async def get_lyrics(self, title, artist, album=None, duration=None):
         """
-        Fetch lyrics for a song.
-
-        Args:
-            title: Song title
-            artist: Artist name
-
-        Returns:
-            dict with 'syncedLyrics', 'plainLyrics' or None
+        Fetch synced lyrics from LRCLIB.
+        Returns a dictionary with 'syncedLyrics', 'plainLyrics', etc. or None.
         """
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Try exact match first
-                params = {
-                    "track_name": title,
-                    "artist_name": artist
-                }
-                async with session.get(f"{LRCLIB_API}/get", params=params) as resp:
+        params = {
+            "track_name": title,
+            "artist_name": artist,
+        }
+        if album:
+            params["album_name"] = album
+        if duration:
+            params["duration"] = duration
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                # 1. Try 'get' endpoint (precise match)
+                async with session.get(f"{self.BASE_URL}/get", params=params) as resp:
                     if resp.status == 200:
-                        return await resp.json()
+                        data = await resp.json()
+                        if data.get("syncedLyrics"):
+                            return data
 
-                # Fallback to search
-                async with session.get(f"{LRCLIB_API}/search", params={"q": f"{title} {artist}"}) as resp:
+                # 2. Fallback to 'search' endpoint
+                async with session.get(f"{self.BASE_URL}/search", params=params) as resp:
                     if resp.status == 200:
                         results = await resp.json()
-                        if results:
-                            # Return first result with synced lyrics
-                            for r in results:
-                                if r.get('syncedLyrics'):
-                                    return r
-                            return results[0] if results else None
-
-        except Exception as e:
-            print(f"LRCLIB error: {e}")
-
+                        # Return first result with synced lyrics
+                        for track in results:
+                            if track.get("syncedLyrics"):
+                                return track
+            except Exception as e:
+                print(f"Error fetching lyrics: {e}")
+        
         return None
 
-    def parse_lrc(self, lrc_text: str) -> list[dict]:
+    def parse_lrc(self, lrc_text):
         """
-        Parse LRC format into list of timed lines.
-
-        LRC format: [mm:ss.xx]Lyrics text here
-
-        Returns:
-            List of {'time': float, 'text': str}
+        Parses LRC text into a list of (timestamp, text) tuples.
+        Timestamp is in seconds.
         """
         lines = []
-        pattern = r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)'
+        if not lrc_text:
+            return lines
 
         for line in lrc_text.split('\n'):
-            match = re.match(pattern, line.strip())
-            if match:
-                minutes = int(match.group(1))
-                seconds = int(match.group(2))
-                ms_str = match.group(3)
-                # Handle both .xx and .xxx formats
-                if len(ms_str) == 2:
-                    ms = int(ms_str) * 10
-                else:
-                    ms = int(ms_str)
-
-                time_sec = minutes * 60 + seconds + ms / 1000
-                text = match.group(4).strip()
-
-                lines.append({
-                    'time': time_sec,
-                    'text': text
-                })
-
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Basic LRC parsing [mm:ss.xx]Text
+            try:
+                if line.startswith('[') and ']' in line:
+                    time_tag, text = line.split(']', 1)
+                    time_tag = time_tag[1:] # Remove [
+                    
+                    minutes, seconds = time_tag.split(':')
+                    timestamp = float(minutes) * 60 + float(seconds)
+                    
+                    lines.append({
+                        "time": timestamp,
+                        "text": text.strip()
+                    })
+            except Exception:
+                continue
+                
         return lines
