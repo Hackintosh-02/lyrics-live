@@ -76,6 +76,11 @@ function createWindow() {
   });
 }
 
+// Handle close request from renderer
+ipcMain.on('close-app', () => {
+  app.quit();
+});
+
 function startPythonBackend() {
   const pythonPath = path.join(__dirname, '../venv/bin/python');
   const scriptPath = path.join(__dirname, '../py_backend/main.py');

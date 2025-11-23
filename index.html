@@ -43,6 +43,27 @@
       color: rgba(255,255,255,0.7);
     }
 
+    #drag-bar .close-btn {
+      -webkit-app-region: no-drag;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+    }
+
+    #drag-bar .close-btn:hover {
+      background: rgba(239, 68, 68, 0.8);
+    }
+
     body.interactive #drag-bar {
       display: flex;
     }
@@ -189,7 +210,10 @@
 <body>
   <div id="drag-bar">
     <span class="title">Lyrics Live</span>
-    <span class="hint">Ctrl+Shift+L to lock</span>
+    <div style="display: flex; align-items: center;">
+      <span class="hint">Ctrl+Shift+L to lock</span>
+      <button class="close-btn" id="close-btn" title="Close">×</button>
+    </div>
   </div>
 
   <div id="main-container">

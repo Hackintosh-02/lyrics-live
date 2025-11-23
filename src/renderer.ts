@@ -9,6 +9,14 @@ import { ipcRenderer } from 'electron';
 
 const lyricsContainer = document.getElementById('lyrics-container');
 const modeIndicator = document.getElementById('mode-indicator');
+const closeBtn = document.getElementById('close-btn');
+
+// Close button handler
+if (closeBtn) {
+  closeBtn.addEventListener('click', () => {
+    ipcRenderer.send('close-app');
+  });
+}
 
 interface LyricLine {
   time: number;
